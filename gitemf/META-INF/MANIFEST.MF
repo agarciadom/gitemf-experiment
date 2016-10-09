@@ -1,0 +1,17 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Prototype Git-based EMF store
+Bundle-SymbolicName: gitemf;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: Aston University
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Require-Bundle: org.eclipse.emf.common,
+ org.eclipse.emf.ecore,
+ org.eclipse.jgit,
+ org.apache.commons.io,
+ org.slf4j.api,
+ org.apache.commons.lang3,
+ com.google.gson
+Bundle-ActivationPolicy: lazy
+Export-Package: gitemf,
+ gitemf.estores
