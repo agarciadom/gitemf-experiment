@@ -3,7 +3,6 @@ package gitemf;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,13 +29,6 @@ import gitemf.estores.GitEStore;
 public class GitResourceImpl extends ResourceImpl {
 
 	private static final String ECLASS_FNAME = "eclass";
-
-	private static final class DirectoryFilter implements FileFilter {
-		@Override
-		public boolean accept(File pathname) {
-			return pathname.isDirectory();
-		}
-	}
 
 	public static final String SCHEME = "gitemf";
 
@@ -162,6 +154,7 @@ public class GitResourceImpl extends ResourceImpl {
 			GitEObjectImpl geob = (GitEObjectImpl)eob;
 			geob.setFolder(f);
 			geob.eSetStore(store);
+			geob.attach(this);
 		}
 		return eob;
 	}

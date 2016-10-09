@@ -123,5 +123,40 @@ public class BasicTests {
 		rGit.save(null);
 
 		System.out.println("saved!");
+		// TODO should compare contents
+	}
+
+	@Test
+	public void doDelete() throws Exception {
+		{
+			final GitResourceImpl r = new GitResourceImpl(fRepoURI);
+			r.load(null);
+
+			final CoreFactory factory = CorePackage.eINSTANCE.getCoreFactory();
+			final IJavaProject project = factory.createIJavaProject();
+			project.setElementName("Test");
+			project.setIsReadOnly(true);
+			r.getContents().add(project);
+			r.save(null);
+
+			final SourcePackageFragmentRoot root1 = factory.createSourcePackageFragmentRoot();
+			root1.setElementName("XYZ");
+			project.getPackageFragmentRoots().add(root1);
+			r.save(null);
+
+			project.getPackageFragmentRoots().remove(root1);
+			r.save(null);
+
+			r.unload();
+		}
+
+		final GitResourceImpl r = new GitResourceImpl(fRepoURI);
+		r.load(null);
+		assertEquals(1, r.getContents().size());
+		IJavaProject iJavaProject = (IJavaProject) r.getContents().get(0);
+
+		EList<IPackageFragmentRoot> children = iJavaProject.getPackageFragmentRoots();
+		assertEquals(0, children.size());
+		assertEquals(0, ((GitEObjectImpl)iJavaProject).getFolder().listFiles(new DirectoryFilter()).length);
 	}
 }

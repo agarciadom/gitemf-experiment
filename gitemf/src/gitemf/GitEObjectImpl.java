@@ -82,9 +82,8 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 	protected void eBasicSetContainer(InternalEObject newContainer) {
 		eContainer = newContainer;
 
-		attach(eContainer.eResource());
+		attach(eContainer != null ? eContainer.eResource() : null);
 		if (resource instanceof GitResourceImpl && eContainer instanceof GitEObjectImpl) {
-			GitResourceImpl gResource = (GitResourceImpl)resource;
 			GitEObjectImpl gEobContainer = (GitEObjectImpl) eContainer;
 			if (!gEobContainer.folder.equals(folder.getParentFile())) {
 				final String oldReferencePath = getReferencePath();
@@ -98,7 +97,6 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				}
-
 			}
 		}
 	}
@@ -132,6 +130,17 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 						Object value = adaptToGit(oldStore.get(this, sf, EStore.NO_INDEX));
 						store.set(this, sf, EStore.NO_INDEX, value);
 					}
+				}
+			}
+
+			// If detaching, remove old refs and delete directory
+			if (oldStore instanceof GitEStore) {
+				try {
+					((GitEStore)oldStore).updateIncomingReferences(this, null);
+					FileUtils.deleteDirectory(folder);
+					folder = null;
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}
 		}

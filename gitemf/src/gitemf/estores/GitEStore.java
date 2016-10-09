@@ -16,7 +16,9 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -93,8 +95,10 @@ public class GitEStore implements EStore {
 			Object value = deserialize(geob, feature);
 			if (index == EStore.NO_INDEX || !feature.isMany()) {
 				return value;
-			} else {
+			} else if (value != null) {
 				return ((List<?>)value).get(index);
+			} else {
+				throw new NoSuchElementException();
 			}
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -118,7 +122,6 @@ public class GitEStore implements EStore {
 				serialize(geob, feature, l);
 
 				if (feature instanceof EReference) {
-					final EReference eref = (EReference)feature;
 					final GitEObjectImpl target = (GitEObjectImpl)value;
 					geob.attach(git);
 
@@ -246,7 +249,20 @@ public class GitEStore implements EStore {
 		try {
 			final Object raw = deserialize(geob, feature);
 			if (raw instanceof List) {
-				return ((List<Object>)raw).indexOf(value);
+				if (feature instanceof EAttribute) {
+					return ((List<Object>)raw).indexOf(value);
+				} else {
+					final GitEObjectImpl geobValue = (GitEObjectImpl)value;
+
+					int i = 0;
+					for (Iterator<GitEObjectImpl> itEob = ((List<GitEObjectImpl>)raw).iterator(); itEob.hasNext(); ) {
+						final GitEObjectImpl geobElem = itEob.next();
+						if (geobElem.getFolder().equals(geobElem.getFolder())) {
+							return i;
+						}
+						i++;
+					}
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -469,21 +485,17 @@ public class GitEStore implements EStore {
 			if (feature instanceof EAttribute) {
 				String json = gson.toJson(value);
 				writer.write(json);
-			} else {
-				EReference ref = (EReference) feature;
-
-				if (value instanceof GitEObjectImpl) {
-					GitEObjectImpl target = (GitEObjectImpl) value;
+			} else if (value instanceof GitEObjectImpl) {
+				GitEObjectImpl target = (GitEObjectImpl) value;
+				target.attach(git);
+				writer.write(target.getReferencePath());
+				writer.newLine();
+			} else if (value instanceof List) {
+				List<GitEObjectImpl> l = (List<GitEObjectImpl>) value;
+				for (GitEObjectImpl target : l) {
 					target.attach(git);
 					writer.write(target.getReferencePath());
 					writer.newLine();
-				} else if (value instanceof List) {
-					List<GitEObjectImpl> l = (List<GitEObjectImpl>) value;
-					for (GitEObjectImpl target : l) {
-						target.attach(git);
-						writer.write(target.getReferencePath());
-						writer.newLine();
-					}
 				}
 			}
 		}
@@ -560,7 +572,13 @@ public class GitEStore implements EStore {
 		try (BufferedReader reader = openReader(featureFile)) {
 			String line;
 			while ((line = reader.readLine()) != null) {
-				newRefs.add(oldReferencePath.equals(line) ? newReferencePath : line);
+				if (oldReferencePath.equals(line)) {
+					if (newReferencePath != null) {
+						newRefs.add(newReferencePath);
+					}
+				} else {
+					newRefs.add(line);
+				}
 			}
 		}
 		try (BufferedWriter writer = openWriter(featureFile)) {
