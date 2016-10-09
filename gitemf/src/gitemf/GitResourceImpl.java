@@ -46,12 +46,17 @@ public class GitResourceImpl extends ResourceImpl {
 
 	@Override
 	public String getURIFragment(EObject eObject) {
-		throw new UnsupportedOperationException("not implemented yet");
+		return ((GitEObjectImpl)eObject).getReferencePath();
 	}
 
 	@Override
 	public EObject getEObject(String uriFragment) {
-		throw new UnsupportedOperationException("not implemented yet");
+		try {
+			return loadEObjectFromFolder(new File(getModelFolder(), uriFragment));
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 	@Override

@@ -2,16 +2,7 @@ package gitemf;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-
-import org.apache.commons.io.FileUtils;
 import org.eclipse.emf.common.util.EList;
-import org.eclipse.emf.common.util.URI;
-import org.eclipse.emf.ecore.xmi.impl.XMIResourceImpl;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import jdtast.gitemf.core.Core.BinaryPackageFragmentRoot;
@@ -20,27 +11,9 @@ import jdtast.gitemf.core.Core.CorePackage;
 import jdtast.gitemf.core.Core.IJavaProject;
 import jdtast.gitemf.core.Core.IPackageFragmentRoot;
 import jdtast.gitemf.core.Core.SourcePackageFragmentRoot;
-import jdtast.gitemf.dom.DOM.DOMPackage;
-import jdtast.gitemf.ptypes.PrimitiveTypes.PrimitiveTypesPackage;
 
-public class BasicTests {
+public class BasicTests extends AbstractTest {
 
-	private File fRepo;
-	private URI fRepoURI;
-
-	@Before
-	public void setUp() throws IOException {
-		fRepo = Files.createTempDirectory("gitemf").toFile();
-		fRepoURI = URI.createURI("gitemf://" + fRepo.getAbsolutePath());
-	}
-
-	@After
-	public void tearDown() throws IOException {
-		if (fRepo != null) {
-			FileUtils.deleteDirectory(fRepo);
-		}
-	}
-	
 	@Test
 	public void loadUnload() throws Exception {
 		GitResourceImpl r = new GitResourceImpl(fRepoURI);
@@ -105,25 +78,6 @@ public class BasicTests {
 		EList<IPackageFragmentRoot> children = iJavaProject.getPackageFragmentRoots();
 		assertEquals(2, children.size());
 		assertEquals("XYZ", children.get(0).getElementName());
-	}
-
-	@Test
-	public void loadSet0() throws Exception {
-		CorePackage.eINSTANCE.getName();
-		DOMPackage.eINSTANCE.getName();
-		PrimitiveTypesPackage.eINSTANCE.getName();
-
-		final File fSet0 = new File("resources/set0.xmi").getAbsoluteFile();
-		final XMIResourceImpl rXMI = new XMIResourceImpl(URI.createFileURI(fSet0.getAbsolutePath()));
-		rXMI.load(null);
-
-		final GitResourceImpl rGit = new GitResourceImpl(fRepoURI);
-		rGit.load(null);
-		rGit.getContents().addAll(rXMI.getContents());
-		rGit.save(null);
-
-		System.out.println("saved!");
-		// TODO should compare contents
 	}
 
 	@Test

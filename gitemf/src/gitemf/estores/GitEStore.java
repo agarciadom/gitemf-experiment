@@ -252,12 +252,15 @@ public class GitEStore implements EStore {
 				if (feature instanceof EAttribute) {
 					return ((List<Object>)raw).indexOf(value);
 				} else {
-					final GitEObjectImpl geobValue = (GitEObjectImpl)value;
+					final File valueFolder = ((GitEObjectImpl)value).getFolder();
+					if (valueFolder == null) {
+						return EStore.NO_INDEX;
+					}
 
 					int i = 0;
 					for (Iterator<GitEObjectImpl> itEob = ((List<GitEObjectImpl>)raw).iterator(); itEob.hasNext(); ) {
 						final GitEObjectImpl geobElem = itEob.next();
-						if (geobElem.getFolder().equals(geobElem.getFolder())) {
+						if (valueFolder.equals(geobElem.getFolder())) {
 							return i;
 						}
 						i++;
@@ -278,7 +281,22 @@ public class GitEStore implements EStore {
 		try {
 			final Object raw = deserialize(geob, feature);
 			if (raw instanceof List) {
-				return ((List<Object>)raw).lastIndexOf(value);
+				if (feature instanceof EAttribute) {
+					return ((List<Object>)raw).indexOf(value);
+				} else {
+					final File valueFolder = ((GitEObjectImpl)value).getFolder();
+					if (valueFolder == null) {
+						return EStore.NO_INDEX;
+					}
+
+					final List<GitEObjectImpl> l = (List<GitEObjectImpl>)raw;
+					for (int i = l.size() - 1; i >= 0; i--) {
+						final GitEObjectImpl geobElem = l.get(i);
+						if (valueFolder.equals(geobElem.getFolder())) {
+							return i;
+						}
+					}
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -293,7 +311,7 @@ public class GitEStore implements EStore {
 
 		try {
 			List<Object> vals = (List<Object>) deserialize(geob, feature);
-			if (feature.isMany() && vals == null) {
+			if (vals == null) {
 				vals = new BasicEList<>();
 			}
 			vals.add(index, value);
@@ -380,8 +398,10 @@ public class GitEStore implements EStore {
 			Object value = deserialize(geob, feature);
 			if (feature.isMany()) {
 				return ((List<Object>)value).toArray();
-			} else {
+			} else if (value != null) {
 				return new Object[]{ value };
+			} else {
+				return new Object[0];
 			}
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -396,18 +416,23 @@ public class GitEStore implements EStore {
 
 		try {
 			Object value = deserialize(geob, feature);
+
 			if (feature.isMany()) {
-				return ((List<Object>)value).toArray(array);
-			} else if (array.length >= 1) {
-				array[0] = (T) value;
-				for (int i = 1; i < array.length; i++) {
-					array[i] = null;
+				return ((List<Object>) value).toArray(array);
+			} else if (value != null) {
+				if (array.length >= 1) {
+					array[0] = (T) value;
+					for (int i = 1; i < array.length; i++) {
+						array[i] = null;
+					}
+					return array;
+				} else {
+					T[] newArray = (T[]) Array.newInstance(array.getClass().getComponentType(), 1);
+					newArray[0] = (T) value;
+					return newArray;
 				}
-				return array;
 			} else {
-				T[] newArray = (T[]) Array.newInstance(array.getClass().getComponentType(), 1);
-				newArray[0] = (T) value;
-				return newArray;
+				return (T[]) Array.newInstance(array.getClass().getComponentType(), 0);
 			}
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -421,11 +446,13 @@ public class GitEStore implements EStore {
 
 		try {
 			Object value = deserialize(geob, feature);
-			return value.hashCode();
+			if (value != null) {
+				return value.hashCode();
+			}
 		} catch (IOException ex) {
 			ex.printStackTrace();
-			return 0;
 		}
+		return 0;
 	}
 
 	@Override
