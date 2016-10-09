@@ -2,13 +2,16 @@ package gitemf;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.InternalEObject;
 import org.eclipse.emf.ecore.impl.MinimalEStoreEObjectImpl;
 import org.eclipse.emf.ecore.resource.Resource;
 
+import gitemf.estores.GitEStore;
 import gitemf.estores.MapBackedEStore;
 
 public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
@@ -28,8 +31,14 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 
 	public File getFolder() throws IOException {
 		if (folder == null && resource instanceof GitResourceImpl) {
-			GitResourceImpl gitResource = (GitResourceImpl)resource;
-			folder = new File(gitResource.getModelFolder(), RandomStringUtils.randomAlphanumeric(16));
+			GitResourceImpl gitResource = (GitResourceImpl) resource;
+
+			final String objID = RandomStringUtils.randomAlphanumeric(16);
+			if (eContainer instanceof GitEObjectImpl) {
+				folder = new File(((GitEObjectImpl)eContainer).getFolder(), objID);
+			} else {
+				folder = new File(gitResource.getModelFolder(), objID);
+			}
 			if (!folder.mkdirs()) {
 				throw new IllegalStateException("Could not create folder for new object");
 			}
@@ -41,6 +50,19 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 
 	public void setFolder(File folder) {
 		this.folder = folder;
+	}
+
+	public String getReferencePath() {
+		if (resource instanceof GitResourceImpl) {
+			GitResourceImpl gitResource = (GitResourceImpl) resource;
+			Path modelPath = gitResource.getModelFolder().toPath();
+			try {
+				return modelPath.relativize(getFolder().toPath()).toString();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return folder != null ? folder.getPath() : "";
 	}
 
 	@Override
@@ -59,10 +81,29 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 	@Override
 	protected void eBasicSetContainer(InternalEObject newContainer) {
 		eContainer = newContainer;
+
 		attach(eContainer.eResource());
+		if (resource instanceof GitResourceImpl && eContainer instanceof GitEObjectImpl) {
+			GitResourceImpl gResource = (GitResourceImpl)resource;
+			GitEObjectImpl gEobContainer = (GitEObjectImpl) eContainer;
+			if (!gEobContainer.folder.equals(folder.getParentFile())) {
+				final String oldReferencePath = getReferencePath();
+				final File newFolder = new File(gEobContainer.folder, folder.getName());
+				try {
+					FileUtils.moveDirectory(folder, newFolder);
+					folder = newFolder;
+					if (store instanceof GitEStore) {
+						((GitEStore)store).updateIncomingReferences(this, oldReferencePath);
+					}
+				} catch (IOException ex) {
+					ex.printStackTrace();
+				}
+
+			}
+		}
 	}
 
-	protected void attach(Resource newResource) {
+	public void attach(Resource newResource) {
 		if (newResource == resource) {
 			return;
 		}
@@ -98,10 +139,8 @@ public class GitEObjectImpl extends MinimalEStoreEObjectImpl {
 
 	private Object adaptToGit(Object object) {
 		if (object instanceof GitEObjectImpl) {
-			GitEObjectImpl geob = (GitEObjectImpl)object;
-			if (geob.eResource() != resource) {
-				geob.attach(resource);
-			}
+			GitEObjectImpl geob = (GitEObjectImpl) object;
+			geob.attach(resource);
 		}
 		return object;
 	}

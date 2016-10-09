@@ -66,6 +66,7 @@ public class GitResourceImpl extends ResourceImpl {
 	protected void doSave(OutputStream os, Map<?, ?> options) throws IOException {
 		try {
 			// TODO accept commit message / author in options
+			git.add().addFilepattern(".").call();
 			prepareCommitInfo("resource save").setAll(true).call();
 		} catch (GitAPIException e) {
 			throw new IOException(e);
@@ -81,7 +82,7 @@ public class GitResourceImpl extends ResourceImpl {
 				Git.init().setDirectory(fFolder).call();
 			}
 			git = Git.open(fFolder);
-			store = new GitEStore(git);
+			store = new GitEStore(this);
 
 			File fAttributes = new File(fFolder, ".gitattributes");
 			if (!fAttributes.exists()) {
@@ -99,15 +100,7 @@ public class GitResourceImpl extends ResourceImpl {
 			File modelFolder = getModelFolder();
 			modelFolder.mkdirs();
 			for (File f : modelFolder.listFiles(new DirectoryFilter())) {
-				EClass eClass = loadEClassFile(f);
-
-				EObject eob = eClass.getEPackage().getEFactoryInstance().create(eClass);
-				if (eob instanceof GitEObjectImpl) {
-					GitEObjectImpl geob = (GitEObjectImpl)eob;
-					geob.setFolder(f);
-					geob.eSetStore(store);
-				}
-
+				EObject eob = loadEObjectFromFolder(f);
 				getContents().add(eob);
 			}
 		} catch (GitAPIException e) {
@@ -151,7 +144,7 @@ public class GitResourceImpl extends ResourceImpl {
 		}
 	}
 
-	public EClass loadEClassFile(File folder) throws IOException {
+	protected EClass loadEClassFile(File folder) throws IOException {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(new File(folder, ECLASS_FNAME)), "UTF-8"))) {
 			String nsURI = reader.readLine();
 			String className = reader.readLine();
@@ -159,6 +152,18 @@ public class GitResourceImpl extends ResourceImpl {
 			EPackage.Registry registry = getResourceSet() != null ? getResourceSet().getPackageRegistry() : EPackage.Registry.INSTANCE;
 			return (EClass) registry.getEPackage(nsURI).getEClassifier(className);
 		}
+	}
+
+	public EObject loadEObjectFromFolder(File f) throws IOException {
+		EClass eClass = loadEClassFile(f);
+	
+		EObject eob = eClass.getEPackage().getEFactoryInstance().create(eClass);
+		if (eob instanceof GitEObjectImpl) {
+			GitEObjectImpl geob = (GitEObjectImpl)eob;
+			geob.setFolder(f);
+			geob.eSetStore(store);
+		}
+		return eob;
 	}
 	
 }
